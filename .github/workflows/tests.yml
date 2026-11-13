@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          activate-environment: true  # create .venv and put it on PATH
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+
+      # The default PyPI torch wheel on Linux bundles several GB of CUDA
+      # libraries; runners have no GPU, so install the CPU-only build first.
+      - name: Install CPU-only PyTorch
+        run: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package
+        run: uv pip install . pytest
+
+      - name: Show versions
+        run: python -c "import sys, torch, hornbill; print(sys.version); print('torch', torch.__version__); print('hornbill', hornbill.__version__)"
+
+      - name: Run tests
+        run: pytest -v
