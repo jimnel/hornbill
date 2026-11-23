@@ -26,7 +26,7 @@ def test_zero_state_rejects_bad_input(n):
 # --- StateVector ---------------------------------------------------------------
 import math
 
-from hornbill import gates
+from hornbill import operators
 from hornbill.states import StateVector
 
 
@@ -52,18 +52,18 @@ def test_initial_state_is_all_zeros():
 
 def test_single_qubit_gate_on_each_qubit():
     for q, expected in [(0, [0.5, 0, 0.5, 0]), (1, [0.5, 0.5, 0, 0])]:
-        sv = StateVector(2).apply(gates.H, [q])
+        sv = StateVector(2).apply(operators.H, [q])
         torch.testing.assert_close(sv.probabilities(), torch.tensor(expected, dtype=torch.float64))
 
 
 def test_bell_state():
-    sv = StateVector(2).apply(gates.H, [0]).apply(gates.CNOT, [0, 1])
+    sv = StateVector(2).apply(operators.H, [0]).apply(operators.CNOT, [0, 1])
     torch.testing.assert_close(sv.probabilities(), torch.tensor([0.5, 0, 0, 0.5], dtype=torch.float64))
 
 
 def test_qubit_order_of_two_qubit_gate():
     # X on qubit 1 then CNOT with control 1, target 0: |00> -> |01> -> |11>
-    sv = StateVector(2).apply(gates.X, [1]).apply(gates.CNOT, [1, 0])
+    sv = StateVector(2).apply(operators.X, [1]).apply(operators.CNOT, [1, 0])
     torch.testing.assert_close(sv.probabilities(), torch.tensor([0, 0, 0, 1], dtype=torch.float64))
 
 
@@ -97,15 +97,15 @@ def test_local_apply_matches_full_matrix(qubits):
 def test_probabilities_sum_to_one():
     sv = StateVector(3)
     for q, t in enumerate([0.3, 1.1, -0.7]):
-        sv.apply(gates.ry(t), [q])
-    sv.apply(gates.CNOT, [0, 2])
+        sv.apply(operators.ry(t), [q])
+    sv.apply(operators.CNOT, [0, 2])
     assert sv.probabilities().sum().item() == pytest.approx(1.0, abs=1e-12)
 
 
 def test_gradients_flow_through_apply():
     """P(|1>) after RY(t) is sin^2(t/2), so dP/dt = sin(t)/2."""
     theta = torch.tensor(0.9, dtype=torch.float64, requires_grad=True)
-    sv = StateVector(2).apply(gates.ry(theta), [1])
+    sv = StateVector(2).apply(operators.ry(theta), [1])
     p1 = sv.probabilities()[1]
     (grad,) = torch.autograd.grad(p1, theta)
     assert grad.item() == pytest.approx(math.sin(0.9) / 2, abs=1e-12)
@@ -113,7 +113,7 @@ def test_gradients_flow_through_apply():
 
 def test_gradcheck_through_circuit():
     def circuit(a, b):
-        sv = StateVector(2).apply(gates.rx(a), [0]).apply(gates.CNOT, [0, 1]).apply(gates.ry(b), [1])
+        sv = StateVector(2).apply(operators.rx(a), [0]).apply(operators.CNOT, [0, 1]).apply(operators.ry(b), [1])
         return sv.probabilities()
 
     args = tuple(torch.tensor(v, dtype=torch.float64, requires_grad=True) for v in (0.4, -1.3))
@@ -123,10 +123,10 @@ def test_gradcheck_through_circuit():
 @pytest.mark.parametrize(
     "op, qubits",
     [
-        (gates.X, [2]),          # out of range
-        (gates.CNOT, [0, 0]),    # repeated qubit
-        (gates.CNOT, [0]),       # wrong size for number of qubits
-        (gates.X, None),         # single-qubit operator on whole register
+        (operators.X, [2]),          # out of range
+        (operators.CNOT, [0, 0]),    # repeated qubit
+        (operators.CNOT, [0]),       # wrong size for number of qubits
+        (operators.X, None),         # single-qubit operator on whole register
     ],
 )
 def test_apply_rejects_bad_input(op, qubits):

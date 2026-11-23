@@ -1,6 +1,6 @@
 """hornbill: a differentiable quantum simulator built on PyTorch."""
 
-from hornbill import gates
+from hornbill import operators
 from hornbill.estimation import GridPosterior, choose_setting, sample_outcomes
 from hornbill.evolution import time_evolution
 from hornbill.metrics import unitary_distance, unitary_infidelity
@@ -11,8 +11,8 @@ __all__ = [
     "GridPosterior",
     "StateVector",
     "choose_setting",
-    "gates",
     "gradient_descent",
+    "operators",
     "sample_outcomes",
     "time_evolution",
     "unitary_distance",
