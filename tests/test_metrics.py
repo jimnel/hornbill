@@ -4,7 +4,7 @@ import math
 import pytest
 import torch
 
-from hornbill import gates, gradient_descent
+from hornbill import gradient_descent, operators
 from hornbill.metrics import unitary_distance, unitary_infidelity
 
 
@@ -30,14 +30,14 @@ def test_global_phase_is_ignored():
 
 def test_orthogonal_unitaries_have_maximal_distance():
     # Tr(X^dagger Z) = 0
-    assert unitary_distance(gates.X, gates.Z).item() == pytest.approx(1.0)
-    assert unitary_infidelity(gates.X, gates.Z).item() == pytest.approx(1.0)
+    assert unitary_distance(operators.X, operators.Z).item() == pytest.approx(1.0)
+    assert unitary_infidelity(operators.X, operators.Z).item() == pytest.approx(1.0)
 
 
 def test_rotation_distance_from_identity():
     theta = 0.9
     expected = math.sqrt(1 - abs(math.cos(theta / 2)))
-    assert unitary_distance(gates.rx(theta), gates.I).item() == pytest.approx(expected, abs=1e-12)
+    assert unitary_distance(operators.rx(theta), operators.I).item() == pytest.approx(expected, abs=1e-12)
 
 
 def test_matches_phase_minimised_frobenius_norm():
@@ -71,21 +71,21 @@ def test_infidelity_relation_to_distance():
 
 def test_batching_and_broadcasting():
     thetas = torch.linspace(0, math.pi, 5, dtype=torch.float64)
-    out = unitary_distance(gates.rx(thetas), gates.I)
+    out = unitary_distance(operators.rx(thetas), operators.I)
     assert out.shape == (5,)
     for t, d in zip(thetas, out):
-        assert d.item() == pytest.approx(unitary_distance(gates.rx(t.item()), gates.I).item())
+        assert d.item() == pytest.approx(unitary_distance(operators.rx(t.item()), operators.I).item())
 
 
 def test_mixed_precision_is_promoted():
-    u = gates.rx(torch.tensor(0.3, dtype=torch.float32))  # complex64
-    assert unitary_distance(u, gates.I).dtype == torch.float64
+    u = operators.rx(torch.tensor(0.3, dtype=torch.float32))  # complex64
+    assert unitary_distance(u, operators.I).dtype == torch.float64
 
 
 @pytest.mark.parametrize(
     "u, v",
     [
-        (gates.X, gates.CNOT),              # different sizes
+        (operators.X, operators.CNOT),              # different sizes
         (torch.zeros(2, 3), torch.zeros(2, 3)),  # not square
         (torch.zeros(2), torch.zeros(2)),   # not a matrix
     ],
@@ -97,7 +97,7 @@ def test_rejects_bad_shapes(u, v):
 
 def test_infidelity_gradcheck():
     def loss(a, b, c):
-        return unitary_infidelity(gates.u3(a, b, c), gates.H)
+        return unitary_infidelity(operators.u3(a, b, c), operators.H)
 
     args = tuple(torch.tensor(x, dtype=torch.float64, requires_grad=True) for x in (0.4, 0.2, -0.5))
     assert torch.autograd.gradcheck(loss, args)
@@ -105,7 +105,7 @@ def test_infidelity_gradcheck():
 
 def test_infidelity_gradient_is_zero_at_minimum():
     theta = torch.tensor(0.6, dtype=torch.float64, requires_grad=True)
-    loss = unitary_infidelity(gates.rx(theta), gates.rx(0.6))
+    loss = unitary_infidelity(operators.rx(theta), operators.rx(0.6))
     (grad,) = torch.autograd.grad(loss, theta)
     assert torch.isfinite(grad) and grad.abs().item() < 1e-10
 
@@ -113,5 +113,5 @@ def test_infidelity_gradient_is_zero_at_minimum():
 def test_fit_u3_to_hadamard():
     """Gradient descent on the infidelity recovers H (up to global phase) with a u3 gate."""
     params = [torch.tensor(x, dtype=torch.float64, requires_grad=True) for x in (0.4, 0.2, -0.5)]
-    gradient_descent(lambda a, b, c: unitary_infidelity(gates.u3(a, b, c), gates.H), params, lr=0.5, steps=2000)
-    assert unitary_distance(gates.u3(*params), gates.H).item() < 1e-5
+    gradient_descent(lambda a, b, c: unitary_infidelity(operators.u3(a, b, c), operators.H), params, lr=0.5, steps=2000)
+    assert unitary_distance(operators.u3(*params), operators.H).item() < 1e-5

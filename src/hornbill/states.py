@@ -41,14 +41,14 @@ class StateVector:
     in place, so gradients flow from any later quantity (e.g.
     :meth:`probabilities`) back to the parameters of the gates applied.
 
-    Qubit ordering matches :mod:`hornbill.gates`: qubit 0 is the most
+    Qubit ordering matches :mod:`hornbill.operators`: qubit 0 is the most
     significant bit, so basis state index ``i`` is the binary string
     ``q0 q1 ... q_{n-1}``.
 
     Example:
-        >>> from hornbill import StateVector, gates
+        >>> from hornbill import StateVector, operators
         >>> sv = StateVector(2)
-        >>> sv.apply(gates.H, [0]).apply(gates.CNOT, [0, 1])  # Bell state
+        >>> sv.apply(operators.H, [0]).apply(operators.CNOT, [0, 1])  # Bell state
         >>> sv.probabilities()  # [0.5, 0, 0, 0.5]
     """
 

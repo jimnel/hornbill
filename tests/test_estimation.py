@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from hornbill import StateVector, gates
+from hornbill import StateVector, operators
 from hornbill.estimation import GridPosterior, choose_setting, sample_outcomes
 
 
@@ -27,7 +27,7 @@ def test_sample_outcomes_frequencies():
 
 
 def test_sample_outcomes_from_state_vector():
-    sv = StateVector(2).apply(gates.H, [0]).apply(gates.CNOT, [0, 1])
+    sv = StateVector(2).apply(operators.H, [0]).apply(operators.CNOT, [0, 1])
     shots = sample_outcomes(sv.probabilities(), 1000, generator=torch.Generator().manual_seed(1))
     assert set(shots.tolist()) <= {0, 3}
 
@@ -103,7 +103,7 @@ def test_posterior_concentrates_on_true_value():
 def test_state_vector_likelihood_matches_formula():
     """The batched gate formula used as a model agrees with the StateVector circuit."""
     for gamma in [0.1, 0.7, 1.3]:
-        sv = StateVector(1).apply(gates.H, [0]).apply(gates.rz(2 * gamma), [0]).apply(gates.H, [0])
+        sv = StateVector(1).apply(operators.H, [0]).apply(operators.rz(2 * gamma), [0]).apply(operators.H, [0])
         torch.testing.assert_close(sv.probabilities(), ramsey(torch.tensor(gamma), 1.0))
 
 

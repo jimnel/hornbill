@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from hornbill import gates
+from hornbill import operators
 from hornbill.evolution import time_evolution
 
 
@@ -25,9 +25,9 @@ def test_result_is_unitary():
 def test_matches_pauli_rotations():
     theta = 0.7
     # RX(theta) = exp(-i theta X / 2), i.e. H = X / 2 evolved for time theta
-    torch.testing.assert_close(time_evolution(gates.X / 2, theta), gates.rx(theta))
-    torch.testing.assert_close(time_evolution(gates.Z, theta / 2), gates.rz(theta))
-    torch.testing.assert_close(time_evolution(torch.kron(gates.Z, gates.Z) / 2, theta), gates.rzz(theta))
+    torch.testing.assert_close(time_evolution(operators.X / 2, theta), operators.rx(theta))
+    torch.testing.assert_close(time_evolution(operators.Z, theta / 2), operators.rz(theta))
+    torch.testing.assert_close(time_evolution(torch.kron(operators.Z, operators.Z) / 2, theta), operators.rzz(theta))
 
 
 def test_diagonal_hamiltonian_gives_phases():
@@ -74,7 +74,7 @@ def test_derivative_in_time_is_schrodinger_equation():
 
 def test_gradcheck_through_hamiltonian_parameters_and_time():
     def u(params, t):
-        h = params[0] * gates.X + params[1] * gates.Y + params[2] * gates.Z
+        h = params[0] * operators.X + params[1] * operators.Y + params[2] * operators.Z
         return time_evolution(h, t)
 
     params = torch.tensor([0.3, -0.8, 0.5], dtype=torch.float64, requires_grad=True)
@@ -90,4 +90,4 @@ def test_rejects_non_square(h):
 
 def test_rejects_complex_time():
     with pytest.raises(TypeError):
-        time_evolution(gates.X, torch.tensor(1.0 + 1.0j))
+        time_evolution(operators.X, torch.tensor(1.0 + 1.0j))

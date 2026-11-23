@@ -1,8 +1,10 @@
-"""Quantum gates as PyTorch tensors.
+"""Quantum operators as PyTorch tensors.
 
-Fixed gates are module-level ``complex128`` constants. Parametric gates are
-functions of their angles, built entirely from differentiable torch ops, so
-gradients flow from any downstream quantity back to the angles.
+Fixed operators (Paulis, Clifford gates, ...) are module-level ``complex128``
+constants and serve equally as gates, Hamiltonian terms or observables.
+Parametric gates are functions of their angles, built entirely from
+differentiable torch ops, so gradients flow from any downstream quantity back
+to the angles.
 
 Angles may be Python floats or real tensors of any shape. A tensor angle of
 shape ``batch`` gives a gate of shape ``(*batch, d, d)``, so many gates can be
@@ -10,7 +12,7 @@ built and differentiated at once. The complex dtype follows the angle's
 precision (float32 -> complex64, float64 -> complex128); Python floats are
 treated as float64.
 
-Qubit ordering: in two-qubit gates the first qubit is the most significant,
+Qubit ordering: in two-qubit operators the first qubit is the most significant,
 i.e. the basis is |00>, |01>, |10>, |11> with |q0 q1>.
 """
 
@@ -24,7 +26,7 @@ Angle = float | torch.Tensor
 
 DTYPE = torch.complex128
 
-# --- Fixed single-qubit gates -------------------------------------------------
+# --- Fixed single-qubit operators ---------------------------------------------
 I = torch.eye(2, dtype=DTYPE)
 X = torch.tensor([[0, 1], [1, 0]], dtype=DTYPE)
 Y = torch.tensor([[0, -1j], [1j, 0]], dtype=DTYPE)
@@ -33,7 +35,7 @@ H = torch.tensor([[1, 1], [1, -1]], dtype=DTYPE) / math.sqrt(2)
 S = torch.tensor([[1, 0], [0, 1j]], dtype=DTYPE)
 T = torch.tensor([[1, 0], [0, complex(math.cos(math.pi / 4), math.sin(math.pi / 4))]], dtype=DTYPE)
 
-# --- Fixed two-qubit gates ----------------------------------------------------
+# --- Fixed two-qubit operators ------------------------------------------------
 CNOT = torch.tensor(
     [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], dtype=DTYPE
 )
@@ -70,6 +72,33 @@ def _matrix2(a, b, c, d) -> torch.Tensor:
     return torch.stack([torch.stack([a, b], dim=-1), torch.stack([c, d], dim=-1)], dim=-2)
 
 
+# --- Composition --------------------------------------------------------------
+def kron(*ops: torch.Tensor) -> torch.Tensor:
+    """Kronecker (tensor) product ``ops[0] ⊗ ops[1] ⊗ ...``.
+
+    The first operator acts on the most significant qubits, matching the
+    module's qubit ordering, so ``kron(X, I)`` is X on qubit 0 of two.
+
+    Unlike :func:`torch.kron`, only the last two (matrix) dimensions are
+    combined; leading batch dimensions broadcast, so a batch of ``(*batch, m, n)``
+    operators times a ``(p, q)`` operator gives ``(*batch, m*p, n*q)``. Dtypes
+    are promoted as in ordinary multiplication, and gradients flow to every
+    operand.
+    """
+    if not ops:
+        raise ValueError("kron needs at least one operator")
+    for op in ops:
+        if op.ndim < 2:
+            raise ValueError(f"operators must have at least 2 dimensions, got shape {tuple(op.shape)}")
+    out = ops[0]
+    for op in ops[1:]:
+        m, n = out.shape[-2:]
+        p, q = op.shape[-2:]
+        prod = out[..., :, None, :, None] * op[..., None, :, None, :]
+        out = prod.reshape(*prod.shape[:-4], m * p, n * q)
+    return out
+
+
 # --- Parametric gates ---------------------------------------------------------
 def pauli_rotation(pauli: torch.Tensor, theta: Angle) -> torch.Tensor:
     """exp(-i theta/2 P) = cos(theta/2) I - i sin(theta/2) P for any Pauli string P.
@@ -102,17 +131,17 @@ def rz(theta: Angle) -> torch.Tensor:
 
 def rxx(theta: Angle) -> torch.Tensor:
     """Two-qubit XX rotation: exp(-i theta X⊗X / 2)."""
-    return pauli_rotation(torch.kron(X, X), theta)
+    return pauli_rotation(kron(X, X), theta)
 
 
 def ryy(theta: Angle) -> torch.Tensor:
     """Two-qubit YY rotation: exp(-i theta Y⊗Y / 2)."""
-    return pauli_rotation(torch.kron(Y, Y), theta)
+    return pauli_rotation(kron(Y, Y), theta)
 
 
 def rzz(theta: Angle) -> torch.Tensor:
     """Two-qubit ZZ rotation: exp(-i theta Z⊗Z / 2)."""
-    return pauli_rotation(torch.kron(Z, Z), theta)
+    return pauli_rotation(kron(Z, Z), theta)
 
 
 def phase(phi: Angle) -> torch.Tensor:
