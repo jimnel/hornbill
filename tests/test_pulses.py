@@ -106,7 +106,6 @@ def test_invalid_controls():
 
 
 def test_plot():
-    pytest.importorskip("matplotlib")
     import matplotlib
 
     matplotlib.use("Agg")
@@ -120,6 +119,5 @@ def test_plot():
 
 
 def test_plot_label_count_checked():
-    pytest.importorskip("matplotlib")
     with pytest.raises(ValueError, match="labels"):
         Pulse(n=4, time=1.0).plot(labels=["only one"])

@@ -85,8 +85,6 @@ class Pulse:
     ) -> Axes:
         """Plot the amplitude of each control channel against time as a step plot.
 
-        Requires matplotlib (``pip install hornbill[plot]``).
-
         Args:
             labels: One legend label per control channel. Defaults to
                 ``"control 0"``, ``"control 1"``, ...
@@ -96,7 +94,7 @@ class Pulse:
         Returns:
             The axes the pulse was drawn on.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # deferred so ``import hornbill`` stays fast
 
         if labels is None:
             labels = [f"control {k}" for k in range(self.n_controls)]
