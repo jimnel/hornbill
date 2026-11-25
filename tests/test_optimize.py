@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from hornbill import gradient_descent
+from hornbill import gradient_descent, pulse_gradient_descent
 
 
 def test_quadratic_converges_to_minimum():
@@ -42,3 +42,29 @@ def test_rejects_params_without_grad():
     x = torch.tensor(1.0)
     with pytest.raises(ValueError, match="requires_grad"):
         gradient_descent(lambda x: x**2, [x])
+
+
+def test_pulse_gradient_descent_finds_x_gate():
+    from hornbill import Pulse, unitary_infidelity
+    from hornbill import operators as ops
+
+    pulse = Pulse(n=10, time=1.0, generator=torch.Generator().manual_seed(0))
+    before = pulse.params.detach().clone()
+
+    history = pulse_gradient_descent(
+        lambda p: unitary_infidelity(p.unitary([ops.X, ops.Y]), ops.X), pulse, lr=0.5, steps=500, tol=1e-12
+    )
+
+    assert history[-1] < 1e-6
+    assert history[-1] < history[0]
+    assert not torch.equal(pulse.params, before)
+    assert pulse.params.is_leaf and pulse.params.requires_grad
+
+
+def test_pulse_gradient_descent_rejects_frozen_pulse():
+    from hornbill import Pulse
+
+    pulse = Pulse(n=3, time=1.0)
+    pulse.params.requires_grad_(False)
+    with pytest.raises(ValueError, match="requires_grad"):
+        pulse_gradient_descent(lambda p: p.params.sum(), pulse)
