@@ -61,6 +61,9 @@ All of these are importable from `hornbill` directly (e.g. `hornbill.Pulse`), ex
 
 ## Notebooks
 
+Rendered versions are at https://jimnel.github.io/hornbill/. They are re-executed whenever the notebooks or the
+library change on `main`.
+
 - `notebooks/neutral_atom.ipynb`: Rydberg spectrum, blockade, and optimising a CZ pulse with `Pulse` and `RydbergHamiltonian`
 - `notebooks/optimisation.ipynb`: fitting a single-qubit Hamiltonian so that its time evolution equals a target gate
 - `notebooks/bayesian_estimation.ipynb`: estimating a phase rate from Ramsey shots, with fixed and adaptive evolution times
