@@ -1,0 +1,76 @@
+name: Notebooks
+
+# Execute every notebook against the current code and render it to HTML.
+# On main the result is published to GitHub Pages; on pull requests it is
+# uploaded as a downloadable artifact (and the job fails if a notebook breaks).
+
+on:
+  push:
+    branches: [main]
+    paths: ["notebooks/**", "src/**", "pyproject.toml", ".github/workflows/notebooks.yml", ".github/scripts/**"]
+  pull_request:
+    paths: ["notebooks/**", "src/**", "pyproject.toml", ".github/workflows/notebooks.yml", ".github/scripts/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          activate-environment: true
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+
+      # CPU-only torch avoids downloading several GB of CUDA libraries.
+      - name: Install CPU-only PyTorch
+        run: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package and notebook tooling
+        run: uv pip install . nbconvert ipykernel matplotlib
+
+      - name: Execute and render notebooks
+        run: |
+          jupyter nbconvert --to html --execute \
+            --ExecutePreprocessor.timeout=600 \
+            --ExecutePreprocessor.kernel_name=python3 \
+            --output-dir site notebooks/*.ipynb
+
+      - name: Build index
+        run: python .github/scripts/notebook_index.py notebooks site
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Upload preview artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: notebooks-html
+          path: site
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
