@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import torch
 
 from hornbill.evolution import time_evolution
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 
 class Pulse:
@@ -72,6 +76,45 @@ class Pulse:
     def times(self) -> torch.Tensor:
         """Start time of each step, shape ``(n,)``."""
         return torch.arange(self.n, dtype=self.params.dtype) * self.dt
+
+    def plot(
+        self,
+        labels: Sequence[str] | None = None,
+        title: str | None = None,
+        ax: Axes | None = None,
+    ) -> Axes:
+        """Plot the amplitude of each control channel against time as a step plot.
+
+        Requires matplotlib (``pip install hornbill[plot]``).
+
+        Args:
+            labels: One legend label per control channel. Defaults to
+                ``"control 0"``, ``"control 1"``, ...
+            title: Optional axes title.
+            ax: Axes to draw on. If omitted, a new figure is created.
+
+        Returns:
+            The axes the pulse was drawn on.
+        """
+        import matplotlib.pyplot as plt
+
+        if labels is None:
+            labels = [f"control {k}" for k in range(self.n_controls)]
+        elif len(labels) != self.n_controls:
+            raise ValueError(f"expected {self.n_controls} labels, got {len(labels)}")
+        if ax is None:
+            _, ax = plt.subplots(figsize=(8, 3))
+
+        params = self.params.detach().cpu()
+        edges = torch.arange(self.n + 1, dtype=params.dtype) * self.dt
+        for k, label in enumerate(labels):
+            ax.stairs(params[:, k], edges, label=label)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amplitude")
+        if title is not None:
+            ax.set_title(title)
+        ax.legend()
+        return ax
 
     def hamiltonians(
         self, controls: Sequence[torch.Tensor], drift: torch.Tensor | None = None
