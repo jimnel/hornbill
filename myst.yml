@@ -1,0 +1,19 @@
+# Jupyter Book 2 (MyST) configuration. Build locally with:
+#   uv run --with jupyter-book --with ipykernel --with matplotlib jupyter book start --execute
+version: 1
+project:
+  title: hornbill
+  description: A differentiable quantum simulator built on PyTorch.
+  github: https://github.com/jimnel/hornbill
+  toc:
+    - file: README.md
+    - title: Notebooks
+      children:
+        - file: notebooks/neutral_atom.ipynb
+        - file: notebooks/optimisation.ipynb
+        - file: notebooks/bayesian_estimation.ipynb
+        - file: notebooks/idea.ipynb
+site:
+  template: book-theme
+  options:
+    folders: true
