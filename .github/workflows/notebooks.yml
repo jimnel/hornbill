@@ -1,15 +1,16 @@
 name: Notebooks
 
-# Execute every notebook against the current code and render it to HTML.
-# On main the result is published to GitHub Pages; on pull requests it is
-# uploaded as a downloadable artifact (and the job fails if a notebook breaks).
+# Build the Jupyter Book site (README + executed notebooks, see myst.yml).
+# On main the site is published to GitHub Pages; on pull requests it is
+# uploaded as a downloadable artifact. The build is strict, so the job fails
+# if any notebook raises an error.
 
 on:
   push:
     branches: [main]
-    paths: ["notebooks/**", "src/**", "pyproject.toml", ".github/workflows/notebooks.yml", ".github/scripts/**"]
+    paths: ["notebooks/**", "src/**", "pyproject.toml", "README.md", "myst.yml", ".github/workflows/notebooks.yml"]
   pull_request:
-    paths: ["notebooks/**", "src/**", "pyproject.toml", ".github/workflows/notebooks.yml", ".github/scripts/**"]
+    paths: ["notebooks/**", "src/**", "pyproject.toml", "README.md", "myst.yml", ".github/workflows/notebooks.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -30,35 +31,35 @@ jobs:
           enable-cache: true
           cache-dependency-glob: pyproject.toml
 
+      - name: Set up Node (required by Jupyter Book 2)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       # CPU-only torch avoids downloading several GB of CUDA libraries.
       - name: Install CPU-only PyTorch
         run: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install package and notebook tooling
-        run: uv pip install . nbconvert ipykernel matplotlib
+        run: uv pip install . jupyter-book ipykernel matplotlib
 
-      - name: Execute and render notebooks
-        run: |
-          jupyter nbconvert --to html --execute \
-            --ExecutePreprocessor.timeout=600 \
-            --ExecutePreprocessor.kernel_name=python3 \
-            --output-dir site notebooks/*.ipynb
-
-      - name: Build index
-        run: python .github/scripts/notebook_index.py notebooks site
+      - name: Build Jupyter Book
+        env:
+          BASE_URL: /${{ github.event.repository.name }}  # Pages serves the site under /<repo>
+        run: jupyter book build --html --execute --strict --ci
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _build/html
 
       - name: Upload preview artifact
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: notebooks-html
-          path: site
+          path: _build/html
 
   deploy:
     needs: build
