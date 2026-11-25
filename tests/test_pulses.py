@@ -103,3 +103,21 @@ def test_invalid_controls():
         pulse.unitary([ops.X])  # wrong number of controls
     with pytest.raises(ValueError):
         pulse.unitary([ops.X, ops.Y], drift=ops.CNOT)  # wrong drift size
+
+
+def test_plot():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    pulse = Pulse(n=4, time=2.0, n_controls=3)
+    ax = pulse.plot(title="pulse")
+
+    assert ax.get_title() == "pulse"
+    assert [t.get_text() for t in ax.get_legend().get_texts()] == ["control 0", "control 1", "control 2"]
+    assert len(ax.patches) == 3
+    assert ax.patches[0].get_data().edges[-1] == pytest.approx(2.0)
+
+
+def test_plot_label_count_checked():
+    with pytest.raises(ValueError, match="labels"):
+        Pulse(n=4, time=1.0).plot(labels=["only one"])

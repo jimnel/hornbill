@@ -5,7 +5,7 @@ from hornbill.estimation import GridPosterior, choose_setting, sample_outcomes
 from hornbill.evolution import time_evolution
 from hornbill.hamiltonians import RydbergHamiltonian
 from hornbill.metrics import unitary_distance, unitary_infidelity
-from hornbill.optimize import gradient_descent
+from hornbill.optimize import gradient_descent, pulse_gradient_descent
 from hornbill.pulses import Pulse
 from hornbill.states import StateVector, zero_state
 
@@ -17,6 +17,7 @@ __all__ = [
     "choose_setting",
     "gradient_descent",
     "operators",
+    "pulse_gradient_descent",
     "sample_outcomes",
     "time_evolution",
     "unitary_distance",
